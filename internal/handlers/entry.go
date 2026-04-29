@@ -1,9 +1,10 @@
 package handlers
 
 import (
-	"diary-backend/internal/models"
 	"net/http"
 	"strconv"
+
+	"diary-backend/internal/models"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -17,32 +18,36 @@ func NewEntryHandler(db *gorm.DB) *EntryHandler {
 	return &EntryHandler{db: db}
 }
 
+// GET /api/entries - получить ВСЕ записи пользователя
 func (h *EntryHandler) GetEntries(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
 	var entries []models.Entry
-	result := h.db.Order("created_at desc").Find(&entries)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
-		return
-	}
+	h.db.Where("user_id = ?", userID).Order("created_at desc").Find(&entries)
 	c.JSON(http.StatusOK, entries)
 }
 
+// POST /api/entries - создать запись
 func (h *EntryHandler) CreateEntry(c *gin.Context) {
-	var req models.Entry
+	userID, _ := c.Get("userID")
+
+	var req models.CreateEntryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	result := h.db.Create(&req)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
-		return
+	entry := models.Entry{
+		Title:   req.Title,
+		Content: req.Content,
+		UserID:  userID.(uint),
 	}
 
-	c.JSON(http.StatusCreated, req)
+	h.db.Create(&entry)
+	c.JSON(http.StatusCreated, entry)
 }
 
+// GET /api/entries/:id - получить одну запись (с проверкой владельца)
 func (h *EntryHandler) GetEntry(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -50,20 +55,18 @@ func (h *EntryHandler) GetEntry(c *gin.Context) {
 		return
 	}
 
+	userID, _ := c.Get("userID")
+
 	var entry models.Entry
-	result := h.db.First(&entry, id)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "entry not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+	if err := h.db.Where("id = ? AND user_id = ?", id, userID).First(&entry).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "entry not found"})
 		return
 	}
 
 	c.JSON(http.StatusOK, entry)
 }
 
+// PUT /api/entries/:id - обновить запись (с проверкой владельца)
 func (h *EntryHandler) UpdateEntry(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -71,51 +74,40 @@ func (h *EntryHandler) UpdateEntry(c *gin.Context) {
 		return
 	}
 
-	var existingEntry models.Entry
-	if result := h.db.First(&existingEntry, id); result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "entry not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+	userID, _ := c.Get("userID")
+
+	var entry models.Entry
+	if err := h.db.Where("id = ? AND user_id = ?", id, userID).First(&entry).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "entry not found"})
 		return
 	}
 
-	var updatedData models.Entry
-	if err := c.ShouldBindJSON(&updatedData); err != nil {
+	var req models.CreateEntryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	existingEntry.Title = updatedData.Title
-	existingEntry.Content = updatedData.Content
+	entry.Title = req.Title
+	entry.Content = req.Content
+	h.db.Save(&entry)
 
-	if result := h.db.Save(&existingEntry); result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, existingEntry)
+	c.JSON(http.StatusOK, entry)
 }
+
+// DELETE /api/entries/:id - удалить запись (с проверкой владельца)
 func (h *EntryHandler) DeleteEntry(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	var entry models.Entry
-	if result := h.db.First(&entry, id); result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "entry not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
-		return
-	}
 
-	result := h.db.Delete(&entry)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+	userID, _ := c.Get("userID")
+
+	result := h.db.Where("id = ? AND user_id = ?", id, userID).Delete(&models.Entry{})
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "entry not found"})
 		return
 	}
 
