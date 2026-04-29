@@ -9,25 +9,27 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.26.2'
 
-      - name: Build binary
+      - name: Build and deploy
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o diary-server ./cmd/server/main.go
-
-      - name: Deploy
-        env:
-          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          HOST: ${{ secrets.VPS_HOST }}
-        run: |
-          echo "$SSH_KEY" > /tmp/key
+          
+          echo "$KEY" > /tmp/key
           chmod 600 /tmp/key
-          scp -o StrictHostKeyChecking=no -i /tmp/key diary-server root@${HOST}:/home/diaries/diaries-back/diary-server
-          ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "chmod +x /home/diaries/diaries-back/diary-server && cd /home/diaries && docker compose restart backend"
-          rm -f /tmp/key
+          
+          ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "
+            cat > /home/diaries/diaries-back/diary-server
+            chmod +x /home/diaries/diaries-back/diary-server
+            cd /home/diaries
+            docker compose restart backend
+          " < diary-server
+          
+          rm /tmp/key
