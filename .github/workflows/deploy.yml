@@ -32,6 +32,14 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o diary-server ./cmd/server/main.go
           echo "$KEY" > /tmp/key && chmod 600 /tmp/key
+
+          # Останавливаем контейнер
+          ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "docker stop diaries-back || true"
+
+          # Копируем бинарник
           cat diary-server | ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "cat > /home/diaries/diaries-back/diary-server"
-          ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "chmod +x /home/diaries/diaries-back/diary-server && docker restart diaries-back"
+
+          # Запускаем контейнер
+          ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "chmod +x /home/diaries/diaries-back/diary-server && docker start diaries-back"
+
           rm -f /tmp/key
