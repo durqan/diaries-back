@@ -35,3 +35,4 @@ jobs:
           scp -o StrictHostKeyChecking=no -i /tmp/key diary-server root@${HOST}:/home/diaries/diaries-back/
           ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "chmod +x /home/diaries/diaries-back/diary-server && cd /home/diaries && docker compose restart backend"
           rm -f /tmp/key
+          
