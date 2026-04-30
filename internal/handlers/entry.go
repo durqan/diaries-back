@@ -18,7 +18,6 @@ func NewEntryHandler(db *gorm.DB) *EntryHandler {
 	return &EntryHandler{db: db}
 }
 
-// GET /api/entries - получить ВСЕ записи пользователя
 func (h *EntryHandler) GetEntries(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
@@ -27,7 +26,6 @@ func (h *EntryHandler) GetEntries(c *gin.Context) {
 	c.JSON(http.StatusOK, entries)
 }
 
-// POST /api/entries - создать запись
 func (h *EntryHandler) CreateEntry(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
@@ -47,7 +45,6 @@ func (h *EntryHandler) CreateEntry(c *gin.Context) {
 	c.JSON(http.StatusCreated, entry)
 }
 
-// GET /api/entries/:id - получить одну запись (с проверкой владельца)
 func (h *EntryHandler) GetEntry(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -66,7 +63,6 @@ func (h *EntryHandler) GetEntry(c *gin.Context) {
 	c.JSON(http.StatusOK, entry)
 }
 
-// PUT /api/entries/:id - обновить запись (с проверкой владельца)
 func (h *EntryHandler) UpdateEntry(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -95,7 +91,6 @@ func (h *EntryHandler) UpdateEntry(c *gin.Context) {
 	c.JSON(http.StatusOK, entry)
 }
 
-// DELETE /api/entries/:id - удалить запись (с проверкой владельца)
 func (h *EntryHandler) DeleteEntry(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
