@@ -32,7 +32,6 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o diary-server ./cmd/server/main.go
           echo "$KEY" > /tmp/key && chmod 600 /tmp/key
-          scp -o StrictHostKeyChecking=no -i /tmp/key diary-server root@${HOST}:/home/diaries/diaries-back/
-          ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "chmod +x /home/diaries/diaries-back/diary-server && cd /home/diaries && docker compose restart backend"
+          cat diary-server | ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "cat > /home/diaries/diaries-back/diary-server"
+          ssh -o StrictHostKeyChecking=no -i /tmp/key root@${HOST} "chmod +x /home/diaries/diaries-back/diary-server && docker restart diaries-back"
           rm -f /tmp/key
-          
