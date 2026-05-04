@@ -21,9 +21,41 @@ func NewEntryHandler(db *gorm.DB) *EntryHandler {
 func (h *EntryHandler) GetEntries(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 20 {
+		pageSize = 20
+	}
+
+	offset := (page - 1) * pageSize
+
 	var entries []models.Entry
-	h.db.Where("user_id = ?", userID).Order("created_at desc").Find(&entries)
-	c.JSON(http.StatusOK, entries)
+	var total int64
+
+	h.db.Model(&models.Entry{}).Where("user_id = ?", userID).Count(&total)
+
+	h.db.Where("user_id = ?", userID).
+		Order("created_at desc").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&entries)
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": entries,
+		"meta": gin.H{
+			"total":       total,
+			"page":        page,
+			"page_size":   pageSize,
+			"total_pages": (total + int64(pageSize) - 1) / int64(pageSize),
+		},
+	})
 }
 
 func (h *EntryHandler) CreateEntry(c *gin.Context) {
